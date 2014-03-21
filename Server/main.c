@@ -12,7 +12,7 @@ int readSock(SOCKET socket, void* buffer, int size);
 
 int currentClients;
 SOCKET clients[MAX_CLIENTS];
-char* serverName;
+char serverName[MAX_NAME];
 uint32_t myNameLen;
 
 
@@ -32,8 +32,14 @@ int main(int argc, char* argv[]){
     currentClients = 0;
     memset(clients, 0, sizeof(SOCKET) * MAX_CLIENTS);
 
-    serverName = argv[1];
-    myNameLen = strlen(serverName);
+    if(argc > 1){
+        sscanf(argv[1], "%s", serverName);
+        myNameLen = strlen(serverName);
+    }
+    else{
+        sscanf("Default Server", "%s", serverName);
+        myNameLen = strlen(serverName);
+    }
 
     server.sin_family = AF_INET;
     server.sin_port = htons(TCP_PORT);
