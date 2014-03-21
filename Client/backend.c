@@ -7,7 +7,7 @@ void* Backend(void* params){
     return NULL;
 }
 
-int	SendMsg(clientNo_t no, char message[MAX_MESSAGE]){
+int	SendMsg(char *message, len_t length){
     return -99;
 }
 

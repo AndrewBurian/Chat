@@ -13,10 +13,20 @@
 #include <signal.h>
 #include <stdint.h>
 
+
+// Shared data
+char clientNames[MAX_CLIENTS][MAX_NAME];
+int clientRooms[MAX_CLIENTS];
+sockaddr_in serverAddr;
+
+SOCKET ipc[2];
+
+
+
 void* Backend(void* params);
 
 // Backend Calls
-int	SendMsg(clientNo_t no, char message[MAX_MESSAGE]);
+int	SendMsg(char *message, len_t length);
 int	chatConnect();
 int	chatDisconnect();
 int	chatServerDiscover();
