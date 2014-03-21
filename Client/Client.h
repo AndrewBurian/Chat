@@ -17,7 +17,7 @@
 // Shared data
 char clientNames[MAX_CLIENTS][MAX_NAME];
 int clientRooms[MAX_CLIENTS];
-sockaddr_in serverAddr;
+struct sockaddr_in serverAddr;
 
 SOCKET ipc[2];
 
