@@ -1,14 +1,14 @@
 #include "../Chat.h"
 #include "Client.h"
 
+SOCKET server = 0;
+
 void* Backend(void* params){
 
     SOCKET ui = ipc[1];
     int isRunning = 1;
     fd_set set;
     SOCKET highSock;
-    SOCKET server = 0;
-
 
     while(isRunning){
 
@@ -34,8 +34,30 @@ int	SendMsg(char *message, len_t length){
 int	chatConnect(){
     return -99;
 }
+
 int	chatDisconnect(){
-    return -99;
+
+    ctl_t protoCtl = SYN;
+    char type = 4 // Disconnect
+
+    // Sever not connected. Call that a successful disconnect
+    if(!server){
+        return 1;
+    }
+
+    // Send client lost packet
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+    send(server, &type, sizeof(char), 0);
+    send(server, &myNameLen, sizeof(len_t), 0);
+    send(server, myName, myNameLen, 0);
+    protoCtl = EOT;
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+
+    // Disconnect
+    close(server);
+    server = 0;
+
+    return 1;
 }
 
 int	chatserverDiscover(){

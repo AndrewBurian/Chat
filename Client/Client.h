@@ -18,6 +18,8 @@
 char clientNames[MAX_CLIENTS][MAX_NAME];
 int clientRooms[MAX_CLIENTS];
 struct sockaddr_in serverAddr;
+char myName[MAX_NAME];
+len_t myNameLen;
 
 SOCKET ipc[2];
 
