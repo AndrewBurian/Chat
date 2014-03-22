@@ -15,10 +15,14 @@
 
 
 // Shared data
-char clientNames[MAX_CLIENTS][MAX_NAME];
+char* clientNames[MAX_CLIENTS];
 int clientRooms[MAX_CLIENTS];
+
 struct sockaddr_in serverAddr;
-char myName[MAX_NAME];
+char* serverName;
+len_t serverNameLen;
+
+char* myName;
 len_t myNameLen;
 
 SOCKET ipc[2];

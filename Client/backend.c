@@ -1,6 +1,9 @@
 #include "../Chat.h"
 #include "Client.h"
 
+int readSock(SOCKET socket, void* buffer, int size);
+void clearStream(SOCKET socket);
+
 SOCKET server = 0;
 
 void* Backend(void* params){
@@ -32,13 +35,75 @@ int	SendMsg(char *message, len_t length){
 }
 
 int	chatConnect(){
-    return -99;
+    ctl_t protoCtl = SYN;
+    char type = 0;
+    struct sockaddr_in client;
+
+    client.sin_family = AF_INET;
+    client.sin_port = htons(TCP_PORT);
+    client.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if(bind(server, (struct sockaddr*)&client, sizeof(client)) == -1){
+        return 0;
+    }
+
+    if(connect(server, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1){
+        return 0;
+    }
+
+    // Ensure the name is single null terminated
+    if(myName[myNameLen] != 0){
+        // if there's space, just add the null and increase the size
+        if(myNameLen < MAX_NAME){
+            myNameLen++;
+            myName[myNameLen] = 0;
+        }
+        // too bad, truncating
+        else{
+            myName[MAX_NAME] = 0;
+        }
+    }
+
+    // Receive Server Name Message
+    readSock(server, &protoCtl, sizeof(ctl_t));
+    if(protoCtl != SYN){
+        // joined an non-conforming server, leave
+        close(server);
+        server = 0;
+        return 0;
+    }
+    readSock(server, &type, sizeof(char));
+    readSock(server, &serverNameLen, sizeof(len_t));
+    serverName = malloc(serverNameLen);
+    readSock(server, serverName, serverNameLen);
+    readSock(server, &protoCtl, sizeof(ctl_t));
+
+    if(type != 1 || protoCtl != EOT){
+        // joined an non-conforming server, leave
+        chatDisconnect();
+        return 0;
+    }
+
+
+    // Send client join packet
+    protoCtl = SYN;
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+    type = 2; // Connect;
+    send(server, &type, sizeof(char), 0);
+    send(server, &myNameLen, sizeof(len_t), 0);
+    send(server, myName, myNameLen, 0);
+    protoCtl = EOT;
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+
+    return 1;
+
 }
 
 int	chatDisconnect(){
+    int i;
 
     ctl_t protoCtl = SYN;
-    char type = 4 // Disconnect
+    char type = 4; // Disconnect
 
     // Sever not connected. Call that a successful disconnect
     if(!server){
@@ -56,6 +121,17 @@ int	chatDisconnect(){
     // Disconnect
     close(server);
     server = 0;
+    free(serverName);
+    serverName = 0;
+    serverNameLen = 0;
+
+    for(i = 0; i < MAX_CLIENTS; ++i){
+        if(clientNames[i]){
+            free(clientNames[i]);
+            clientNames[i] = 0;
+        }
+        clientRooms[i] = 0;
+    }
 
     return 1;
 }
@@ -151,4 +227,33 @@ int	chatserverDiscover(){
     close(udpOut);
 
     return ret;
+}
+
+
+
+int readSock(SOCKET socket, void* buffer, int size){
+    int toRead = size;
+	int thisRead;
+	int totalRead = 0;
+
+	while (toRead > 0) {
+
+		thisRead = read(socket, buffer + totalRead, toRead - totalRead);
+
+		if (thisRead <= 0) {
+			continue;
+		}
+
+		totalRead += thisRead;
+		toRead -= thisRead;
+	}
+
+	return totalRead;
+}
+
+void clearStream(SOCKET socket){
+    char dat;
+    do{
+        readSock(socket, &dat, sizeof(char));
+    }while(dat != EOT);
 }
