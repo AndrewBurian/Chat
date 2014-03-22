@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdint.h>
 
@@ -25,6 +26,8 @@ len_t serverNameLen;
 char* myName;
 len_t myNameLen;
 
+#define UI 0 // The UI end of the sock set
+#define BE 1 // The Back End end of the sock set
 SOCKET ipc[2];
 
 
@@ -32,6 +35,8 @@ SOCKET ipc[2];
 void* Backend(void* params);
 
 // Backend Calls
+int StartBackend();
+int StopBackend();
 int	SendMsg(char *message, len_t length);
 int	chatConnect();
 int	chatDisconnect();

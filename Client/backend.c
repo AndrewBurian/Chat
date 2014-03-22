@@ -1,17 +1,46 @@
 #include "../Chat.h"
 #include "Client.h"
+#include <semaphore.h>
 
 int readSock(SOCKET socket, void* buffer, int size);
 void clearStream(SOCKET socket);
+void inturruptBackend();
+void resumeBackend();
 
+int isRunning = 1;
 SOCKET server = 0;
+sem_t lockBackend;
+pthread_t threadBackend;
+
+int StartBackend(){
+    if(sem_init(&lockBackend, 0, 1) == -1){
+        return 0;
+    }
+    if(pthread_create(&threadBackend, NULL, Backend, NULL) != 0){
+        sem_destroy(&lockBackend);
+        return 0;
+    }
+    return 1;
+}
+
+int StopBackend(){
+    inturruptBackend();
+    isRunning = 0;
+    resumeBackend();
+    pthread_join(threadBackend, NULL);
+    return 1;
+}
 
 void* Backend(void* params){
 
-    SOCKET ui = ipc[1];
-    int isRunning = 1;
+    SOCKET ui = ipc[BE];
     fd_set set;
     SOCKET highSock;
+
+    char protoCtl;
+    char type;
+    void* name;
+    void* message;
 
     while(isRunning){
 
@@ -25,7 +54,31 @@ void* Backend(void* params){
             highSock = (highSock > server) ? highSock : server;
         }
 
+        select(highSock + 1, &set, NULL, NULL, NULL);
+
+        if(FD_ISSET(ui, &set)){
+            readSock(ui, &protoCtl, sizeof(ctl_t));
+
+            if(protoCtl == 0xF){ // inturrupt
+                sem_wait(&lockBackend);
+                sem_post(&lockBackend);
+                continue;
+            }
+
+        }
+
+        // if interaction from server
+        // lock the backend to prevent disconnect while in process of reading
+        // read
+        // send
+        // release lock
+        if(server && FD_ISSET(server, &set)){
+
+        }
+
     }
+
+    sem_destroy(&lockBackend);
 
     return NULL;
 }
@@ -46,6 +99,9 @@ int	chatConnect(){
     if(bind(server, (struct sockaddr*)&client, sizeof(client)) == -1){
         return 0;
     }
+
+    // pause the backend
+    inturruptBackend();
 
     if(connect(server, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1){
         return 0;
@@ -70,6 +126,7 @@ int	chatConnect(){
         // joined an non-conforming server, leave
         close(server);
         server = 0;
+        resumeBackend();
         return 0;
     }
     readSock(server, &type, sizeof(char));
@@ -80,7 +137,8 @@ int	chatConnect(){
 
     if(type != 1 || protoCtl != EOT){
         // joined an non-conforming server, leave
-        chatDisconnect();
+        close(server);
+        resumeBackend();
         return 0;
     }
 
@@ -95,6 +153,7 @@ int	chatConnect(){
     protoCtl = EOT;
     send(server, &protoCtl, sizeof(ctl_t), 0);
 
+    resumeBackend();
     return 1;
 
 }
@@ -109,6 +168,9 @@ int	chatDisconnect(){
     if(!server){
         return 1;
     }
+
+    // Break the backend out of it's listening state
+    inturruptBackend();
 
     // Send client lost packet
     send(server, &protoCtl, sizeof(ctl_t), 0);
@@ -132,6 +194,9 @@ int	chatDisconnect(){
         }
         clientRooms[i] = 0;
     }
+
+    // resume the backend, now disconnected
+    resumeBackend();
 
     return 1;
 }
@@ -229,7 +294,15 @@ int	chatserverDiscover(){
     return ret;
 }
 
+void inturruptBackend(){
+    char inturrupt = 0xF;
+    sem_wait(&lockBackend);
+    write(ipc[UI], &inturrupt, sizeof(char));
+}
 
+void resumeBackend(){
+    sem_post(&lockBackend);
+}
 
 int readSock(SOCKET socket, void* buffer, int size){
     int toRead = size;
