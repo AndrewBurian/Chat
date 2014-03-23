@@ -8,10 +8,12 @@ int handleMessage(int pos);
 void chat(int pos);
 void clearStream(int pos);
 void removeClient(int pos);
+void changeRoom(int pos);
 int readSock(SOCKET socket, void* buffer, int size);
 
 int currentClients;
 SOCKET clients[MAX_CLIENTS];
+roomNo_t rooms[MAX_CLIENTS];
 char serverName[MAX_NAME];
 uint32_t myNameLen;
 
@@ -224,6 +226,9 @@ int handleMessage(int pos){
             removeClient(pos);
             currentClients--;
             break;
+        case 'R':
+            changeRoom(pos);
+            break;
         default:
             clearStream(pos);
             printf("Unknown Packet type %d discarded\n", (int)type);
@@ -313,6 +318,43 @@ void chat(int pos){
     free(name);
 
     return;
+}
+
+void changeRoom(int pos){
+    roomNo_t room;
+    void* name;
+    len_t nameLen;
+    char type = 'R';
+
+    ctl_t protoCtl = 0;
+
+    readSock(clients[pos], &room, sizeof(roomNo_t));
+    rooms[pos] = room;
+    readSock(clients[pos], &nameLen, sizeof(len_t));
+    name = malloc(nameLen);
+    readSock(clients[pos], name, nameLen);
+    readSock(clients[pos], &protoCtl, sizeof(ctl_t));
+
+    if(protoCtl != EOT){
+        fprintf(stderr, "Malformed protocol stream room change termination\n");
+    }
+
+
+    for(i = 0; i < MAX_CLIENTS; ++i){
+        if(clients[i] != 0 && i != pos){
+            protocolCtl = SYN;
+            send(clients[i], &protocolCtl, sizeof(char), 0);
+            send(clients[i], &type, sizeof(char), 0);
+            send(clients[i], &room, sizeof(roomNo_t), 0);
+            send(clients[i], &namelen, sizeof(uint32_t), 0);
+            send(clients[i], name, namelen, 0);
+            protocolCtl = EOT;
+            send(clients[i], &protocolCtl, sizeof(char), 0);
+        }
+    }
+
+
+    free(name);
 }
 
 int readSock(SOCKET socket, void* buffer, int size){
