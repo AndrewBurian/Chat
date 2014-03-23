@@ -111,6 +111,8 @@ void getMessage(){
     void* name;
     len_t msgLen;
     void* msg;
+    char toUI[MAX_MESSAGE] = {0};
+    int i;
 
     // Get the client name
     readSock(server, &nameLen, sizeof(len_t));
@@ -123,7 +125,13 @@ void getMessage(){
     readSock(server, msg, msgLen);
 
     // call UI message function
-    TODO;
+    memcpy(toUI, msg, MAX_MESSAGE - 1);
+    for(i = 0; i < MAX_CLIENTS; ++i){
+           if(!clientNames[i]){
+               break;
+           }
+       }
+    incomingMessage(i, toUI);
 
     free(name);
     free(msg);
@@ -149,7 +157,7 @@ void getNewClient(){
     readSock(server, clientNames[i], nameLen);
 
     // call UI update clients function
-    TODO;
+    updateClientList(clientRooms[i]);
 }
 
 void getClientLost(){
@@ -172,7 +180,7 @@ void getClientLost(){
     }
 
     // call UI update clients function
-    TODO;
+    updateClientList(clientRooms[i]);
 }
 
 void getRoomChange(){
@@ -196,7 +204,7 @@ void getRoomChange(){
     }
 
     // call UI update clients function
-    TODO;
+    updateClientList(clientRooms[i]);
 }
 
 int	SendMsg(char *message, len_t length){
@@ -226,9 +234,9 @@ void sendChat(){
     message = malloc(msgLen);
     readSock(ipc[BE], message, msgLen);
     send(server, &msgLen, sizeof(len_t), 0);
-    send(server, message, mesgLen, 0);
+    send(server, message, msgLen, 0);
     protoCtl = EOT;
-    nd(server, &protoCtl, sizeof(ctl_t), 0);
+    send(server, &protoCtl, sizeof(ctl_t), 0);
 }
 
 int changeRoom(roomNo_t room){

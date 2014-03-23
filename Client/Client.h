@@ -14,6 +14,8 @@
 #include <signal.h>
 #include <stdint.h>
 
+#include "mainGUI.h"
+#include "../Chat.h"
 
 // Shared data
 char* clientNames[MAX_CLIENTS];
@@ -30,16 +32,17 @@ len_t myNameLen;
 #define BE 1 // The Back End end of the sock set
 SOCKET ipc[2];
 
-
-
 void* Backend(void* params);
 
 // Backend Calls
 int StartBackend();
 int StopBackend();
-int	SendMsg(char *message, len_t length);
-int	chatConnect();
-int	chatDisconnect();
-int	chatserverDiscover();
+int SendMsg(char *message, len_t length);
+int chatConnect();
+int chatDisconnect();
+int chatserverDiscover();
 int changeRoom(roomNo_t room);
+
+void incomingMessage(int client, char incoming[50]);
+void updateClientList(int room);
 
