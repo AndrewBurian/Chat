@@ -325,17 +325,18 @@ void changeRoom(int pos){
     void* name;
     len_t nameLen;
     char type = 'R';
+    int i;
 
-    ctl_t protoCtl = 0;
+    ctl_t protocolCtl = 0;
 
     readSock(clients[pos], &room, sizeof(roomNo_t));
     rooms[pos] = room;
     readSock(clients[pos], &nameLen, sizeof(len_t));
     name = malloc(nameLen);
     readSock(clients[pos], name, nameLen);
-    readSock(clients[pos], &protoCtl, sizeof(ctl_t));
+    readSock(clients[pos], &protocolCtl, sizeof(ctl_t));
 
-    if(protoCtl != EOT){
+    if(protocolCtl != EOT){
         fprintf(stderr, "Malformed protocol stream room change termination\n");
     }
 
@@ -346,8 +347,8 @@ void changeRoom(int pos){
             send(clients[i], &protocolCtl, sizeof(char), 0);
             send(clients[i], &type, sizeof(char), 0);
             send(clients[i], &room, sizeof(roomNo_t), 0);
-            send(clients[i], &namelen, sizeof(uint32_t), 0);
-            send(clients[i], name, namelen, 0);
+            send(clients[i], &nameLen, sizeof(uint32_t), 0);
+            send(clients[i], name, nameLen, 0);
             protocolCtl = EOT;
             send(clients[i], &protocolCtl, sizeof(char), 0);
         }
