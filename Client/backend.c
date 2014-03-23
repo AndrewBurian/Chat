@@ -11,6 +11,7 @@ void getMessage();
 void getNewClient();
 void getClientLost();
 void getRoomChange();
+void sendChat();
 
 int isRunning = 1;
 SOCKET server = 0;
@@ -44,8 +45,6 @@ void* Backend(void* params){
 
     char protoCtl;
     char type;
-    void* name;
-    void* message;
 
     while(isRunning){
 
@@ -70,13 +69,12 @@ void* Backend(void* params){
                 continue;
             }
 
+            if(protoCtl == 1){
+                sendChat();
+            }
+
         }
 
-        // if interaction from server
-        // lock the backend to prevent disconnect while in process of reading
-        // read
-        // send
-        // release lock
         if(server && FD_ISSET(server, &set)){
             sem_wait(&lockBackend);
             if(readSock(server, &type, sizeof(type)) == -1){
@@ -125,7 +123,7 @@ void getMessage(){
     readSock(server, msg, msgLen);
 
     // call UI message function
-    TODO
+    TODO;
 
     free(name);
     free(msg);
@@ -134,7 +132,6 @@ void getMessage(){
 void getNewClient(){
 
     len_t nameLen;
-    void* dump;
     int i;
 
     for(i = 0; i < MAX_CLIENTS; ++i){
@@ -152,7 +149,7 @@ void getNewClient(){
     readSock(server, clientNames[i], nameLen);
 
     // call UI update clients function
-    TODO
+    TODO;
 }
 
 void getClientLost(){
@@ -167,7 +164,7 @@ void getClientLost(){
 
     for(i = 0; i < MAX_CLIENTS; ++i){
         if(clientNames[i]){
-            if(strcmp(clientNames, name)){
+            if(strcmp(clientNames[i], name)){
                 free(clientNames[i]);
                 clientNames[i] = 0;
             }
@@ -175,7 +172,7 @@ void getClientLost(){
     }
 
     // call UI update clients function
-    TODO
+    TODO;
 }
 
 void getRoomChange(){
@@ -192,18 +189,46 @@ void getRoomChange(){
 
     for(i = 0; i < MAX_CLIENTS; ++i){
         if(clientNames[i]){
-            if(strcmp(clientNames, name)){
+            if(strcmp(clientNames[i], name)){
                 clientRooms[i] = room;
             }
         }
     }
 
     // call UI update clients function
-    TODO
+    TODO;
 }
 
 int	SendMsg(char *message, len_t length){
-    return -99;
+    char ctl = 1;
+
+    if(!server){
+        return 0;
+    }
+
+    write(ipc[UI], &ctl, sizeof(char));
+    write(ipc[UI], message, length);
+
+    return 1;
+}
+
+void sendChat(){
+    ctl_t protoCtl = SYN;
+    ctl_t type = 3;
+    len_t msgLen;
+    void* message;
+
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+    send(server, &type, sizeof(ctl_t), 0);
+    send(server, &myNameLen, sizeof(len_t), 0);
+    send(server, myName, myNameLen, 0);
+    readSock(ipc[BE], &msgLen, sizeof(len_t));
+    message = malloc(msgLen);
+    readSock(ipc[BE], message, msgLen);
+    send(server, &msgLen, sizeof(len_t), 0);
+    send(server, message, mesgLen, 0);
+    protoCtl = EOT;
+    nd(server, &protoCtl, sizeof(ctl_t), 0);
 }
 
 int changeRoom(roomNo_t room){
