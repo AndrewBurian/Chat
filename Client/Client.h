@@ -40,6 +40,6 @@ int StopBackend();
 int	SendMsg(char *message, len_t length);
 int	chatConnect();
 int	chatDisconnect();
-int	chatServerDiscover();
-
+int	chatserverDiscover();
+int changeRoom(roomNo_t room);
 

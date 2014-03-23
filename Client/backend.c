@@ -7,6 +7,11 @@ void clearStream(SOCKET socket);
 void inturruptBackend();
 void resumeBackend();
 
+void getMessage();
+void getNewClient();
+void getClientLost();
+void getRoomChange();
+
 int isRunning = 1;
 SOCKET server = 0;
 sem_t lockBackend;
@@ -73,7 +78,26 @@ void* Backend(void* params){
         // send
         // release lock
         if(server && FD_ISSET(server, &set)){
-
+            sem_wait(&lockBackend);
+            if(readSock(server, &type, sizeof(type)) == -1){
+                printf("Lost contact with server unexpectedly\n");
+                exit(1);
+            }
+            switch(type){
+                case 2:
+                    getNewClient();
+                    break;
+                case 3:
+                    getMessage();
+                    break;
+                case 4:
+                    getClientLost();
+                    break;
+                case 'R':
+                    getRoomChange();
+                    break;
+            }
+            sem_post(&lockBackend);
         }
 
     }
@@ -83,8 +107,122 @@ void* Backend(void* params){
     return NULL;
 }
 
+void getMessage(){
+
+    len_t nameLen;
+    void* name;
+    len_t msgLen;
+    void* msg;
+
+    // Get the client name
+    readSock(server, &nameLen, sizeof(len_t));
+    name = malloc(nameLen);
+    readSock(server, name, nameLen);
+
+    // Get the message
+    readSock(server, &msgLen, sizeof(len_t));
+    msg = malloc(msgLen);
+    readSock(server, msg, msgLen);
+
+    // call UI message function
+    TODO
+
+    free(name);
+    free(msg);
+}
+
+void getNewClient(){
+
+    len_t nameLen;
+    void* dump;
+    int i;
+
+    for(i = 0; i < MAX_CLIENTS; ++i){
+        if(!clientNames[i]){
+            break;
+        }
+    }
+    if(i == MAX_CLIENTS){
+        clearStream(server);
+        return;
+    }
+
+    readSock(server, &nameLen, sizeof(len_t));
+    clientNames[i] = malloc(nameLen);
+    readSock(server, clientNames[i], nameLen);
+
+    // call UI update clients function
+    TODO
+}
+
+void getClientLost(){
+
+    len_t nameLen;
+    void* name;
+    int i;
+
+    readSock(server, &nameLen, sizeof(len_t));
+    name = malloc(nameLen);
+    readSock(server, name, nameLen);
+
+    for(i = 0; i < MAX_CLIENTS; ++i){
+        if(clientNames[i]){
+            if(strcmp(clientNames, name)){
+                free(clientNames[i]);
+                clientNames[i] = 0;
+            }
+        }
+    }
+
+    // call UI update clients function
+    TODO
+}
+
+void getRoomChange(){
+
+    len_t nameLen;
+    void* name;
+    roomNo_t room;
+    int i;
+
+    readSock(server, &room, sizeof(roomNo_t));
+    readSock(server, &nameLen, sizeof(len_t));
+    name = malloc(nameLen);
+    readSock(server, name, nameLen);
+
+    for(i = 0; i < MAX_CLIENTS; ++i){
+        if(clientNames[i]){
+            if(strcmp(clientNames, name)){
+                clientRooms[i] = room;
+            }
+        }
+    }
+
+    // call UI update clients function
+    TODO
+}
+
 int	SendMsg(char *message, len_t length){
     return -99;
+}
+
+int changeRoom(roomNo_t room){
+    ctl_t protoCtl = SYN;
+    char type = 'R';
+
+    if(!server){
+        return 0;
+    }
+
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+    send(server, &type, sizeof(char), 0);
+    send(server, &room, sizeof(roomNo_t), 0);
+    send(server, &myNameLen, sizeof(len_t), 0);
+    send(server, myName, myNameLen, 0);
+    protoCtl = EOT;
+    send(server, &protoCtl, sizeof(ctl_t), 0);
+
+    return 1;
 }
 
 int	chatConnect(){
@@ -314,7 +452,7 @@ int readSock(SOCKET socket, void* buffer, int size){
 		thisRead = read(socket, buffer + totalRead, toRead - totalRead);
 
 		if (thisRead <= 0) {
-			continue;
+			return -1;
 		}
 
 		totalRead += thisRead;
