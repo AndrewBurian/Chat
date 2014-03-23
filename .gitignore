@@ -24,3 +24,9 @@
 
 #Gedit crap
 *~
+
+/Debug
+
+*.png
+*.cproject
+*.project
