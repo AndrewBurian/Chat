@@ -231,7 +231,7 @@ int serverDiscover(struct sockaddr_in* serverAddr){
 
     }
 
-    serverAddr.sin_port = htons(TCP_PORT);
+    serverAddr->sin_port = htons(TCP_PORT);
 
     close(udpIn);
     close(udpOut);
