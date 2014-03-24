@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
         if(!logFile){
             perror("Failed to open log file");
         }
+        log = 1;
         printf("Chat is recording\n");
     }
 
@@ -80,10 +81,10 @@ int main(int argc, char* argv[])
     readSock(server, &type, typeSize);
     // server name len
     readSock(server, &recvNameLen, nameSize);
-    recvName = malloc(recvNameLen);
+    recvName = malloc(recvNameLen + 1);
     // server name
     readSock(server, recvName, recvNameLen);
-    recvName[recvNameLen-1] = 0;
+    recvName[recvNameLen] = 0;
     // eot
     readSock(server, &type, typeSize);
 
