@@ -30,6 +30,7 @@ int main(int argc, char* argv[]){
 	SOCKET highSocket;
 
 	int i;
+	int enable = 1;
 
     currentClients = 0;
     memset(clients, 0, sizeof(SOCKET) * MAX_CLIENTS);
@@ -49,6 +50,8 @@ int main(int argc, char* argv[]){
 
     tcp = socket(AF_INET, SOCK_STREAM, 0);
     udp = socket(AF_INET, SOCK_DGRAM, 0);
+
+    setsockopt(tcp, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
 
     if(bind(tcp, (struct sockaddr*)&server, sizeof(server)) == -1){
         perror("TCP bind");
@@ -125,7 +128,7 @@ void acceptNew(SOCKET* listenSock){
     newClient = accept(*listenSock, NULL, NULL);
 
     for(i = 0; i < MAX_CLIENTS; ++i){
-        if(clients[i] != 0){
+        if(clients[i] == 0){
             break;
         }
     }
@@ -143,7 +146,7 @@ void acceptNew(SOCKET* listenSock){
     send(newClient, &protoCtl, sizeof(char), 0);
 
     // Get Client name message
-    readSock(newClient, &protoCtl, sizeof(uint32_t));
+    readSock(newClient, &protoCtl, sizeof(ctl_t));
     if(protoCtl != SYN){
         fprintf(stderr, "Malformed protocol stream new client start\n");
         fprintf(stderr, "Client is non-confroming. Rejecting.\n");
@@ -152,7 +155,7 @@ void acceptNew(SOCKET* listenSock){
     }
 
     readSock(newClient, &type, sizeof(char));
-    if(type != 1){
+    if(type != 2){
         fprintf(stderr, "Out of sequence data received in new client\n");
         fprintf(stderr, "Client is non-confroming. Rejecting.\n");
         close(newClient);
@@ -186,12 +189,13 @@ void acceptNew(SOCKET* listenSock){
             send(clients[i], &protoCtl, sizeof(char), 0);
         }
     }
+
     free(name);
 }
 
 void declareServer(SOCKET* sock){
-    struct sockaddr_in client;
-    socklen_t len;
+    struct sockaddr_in client = {0};
+    socklen_t len = sizeof(struct sockaddr_in);
     int call;
 
     recvfrom(*sock, &call, sizeof(int), 0, (struct sockaddr*)&client, &len);
@@ -209,7 +213,12 @@ int handleMessage(int pos){
     char protocolCtl = 0;
     char type = 0;
 
-    readSock(clients[pos], &protocolCtl, sizeof(char));
+    if(readSock(clients[pos], &protocolCtl, sizeof(char)) == -1){
+        close(clients[pos]);
+        clients[pos] = 0;
+        printf("Client %d terminated abruptly\n", pos);
+        return -1;
+    }
 
     if(protocolCtl != SYN){
         fprintf(stderr, "Malformed protocol stream start\n");
@@ -256,6 +265,8 @@ void removeClient(int pos){
         fprintf(stderr, "Malformed protocol stream termination\n");
     }
 
+    printf("%s left\n", name);
+
     for(i = 0; i < MAX_CLIENTS; ++i){
         if(clients[i] != 0 && i != pos){
             protoCtl = SYN;
@@ -300,6 +311,8 @@ void chat(int pos){
         fprintf(stderr, "Malformed protocol stream termination\n");
     }
 
+    printf("%s says \"%s\"\n", name, message);
+
     for(i = 0; i < MAX_CLIENTS; ++i){
         if(clients[i] != 0 && i != pos){
             protocolCtl = SYN;
@@ -340,6 +353,7 @@ void changeRoom(int pos){
         fprintf(stderr, "Malformed protocol stream room change termination\n");
     }
 
+    printf("%s moved to room %d\n", name, room);
 
     for(i = 0; i < MAX_CLIENTS; ++i){
         if(clients[i] != 0 && i != pos){
@@ -368,7 +382,7 @@ int readSock(SOCKET socket, void* buffer, int size){
 		thisRead = read(socket, buffer + totalRead, toRead - totalRead);
 
 		if (thisRead <= 0) {
-			continue;
+			return -1;
 		}
 
 		totalRead += thisRead;
