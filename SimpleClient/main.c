@@ -27,11 +27,21 @@ int main(int argc, char* argv[])
     char* outBuff;
     size_t no = 0;
     uint32_t outLen = 0;
+    int log = 0;
+    FILE* logFile;
 
 
     if(argc < 2){
-        printf("Usage: %s <name>\n", argv[0]);
+        printf("Usage: %s <name> [logfile]\n", argv[0]);
         exit(0);
+    }
+
+    if(argc == 3){
+        logFile = fopen(argv[2], "a+");
+        if(!logFile){
+            perror("Failed to open log file");
+        }
+        printf("Chat is recording\n");
     }
 
     myNameLen = strlen(argv[1]) + 1;
@@ -126,11 +136,18 @@ int main(int argc, char* argv[])
                     recvName[recvNameLen-1] = 0;
                     recvMsg[recvMsgLen-1] = 0;
                     printf("%s: \"%s\"\n", recvName, recvMsg);
+                    if(log){
+                        fprintf(logFile, "%s: \"%s\"\n", recvName, recvMsg);
+                    }
                     free(recvName);
                     free(recvMsg);
                     break;
                 case 4:
                     printf("Lost ");
+                    if(log){
+                        fprintf(logFile, "Lost ");
+                    }
+
                 case 2:
                     readSock(server, &recvNameLen, nameSize);
                     recvName = malloc(recvNameLen);
@@ -138,6 +155,9 @@ int main(int argc, char* argv[])
                     readSock(server, &type, typeSize);
                     recvName[recvNameLen-1] = 0;
                     printf("Client: %s\n", recvName);
+                    if(log){
+                        fprintf(logFile, "Client: %s\n", recvName);
+                    }
                     free(recvName);
                     break;
                 default:
