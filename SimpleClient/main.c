@@ -146,6 +146,99 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+int serverDiscover(struct sockaddr_in* serverAddr){
+   // Search for the server via broadcast
+    SOCKET udpOut;
+    SOCKET udpIn;
+
+    int tries = 0;
+    int serverCall = SERVER_CALL;
+    int echo = 0;
+    int received = 0;
+    char serverName[MAX_NAME];
+    int ret = 0;
+    int enable = 1;
+
+    struct sockaddr_in broadcast;
+    struct sockaddr_in udpClient;
+
+    struct timeval rcvTimeout;
+    socklen_t serverLen = 0;
+
+    broadcast.sin_family = AF_INET;
+    broadcast.sin_port = htons(UDP_PORT);
+    broadcast.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+
+    udpClient.sin_family = AF_INET;
+    udpClient.sin_port = htons(UDP_PORT);
+    udpClient.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    rcvTimeout.tv_sec = 5;
+    rcvTimeout.tv_usec = 0;
+
+    udpOut = socket(AF_INET, SOCK_DGRAM, 0);
+    udpIn = socket(AF_INET, SOCK_DGRAM, 0);
+
+
+    // Set all the options and bind like crazy
+    if(setsockopt(udpOut, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable)) == -1){
+        perror("Broadcast Enable Failed");
+        return 0;
+    }
+
+    if(setsockopt(udpIn, SOL_SOCKET, SO_RCVTIMEO, &rcvTimeout, sizeof(rcvTimeout)) == -1){
+        perror("Timeout Set Failed");
+        return 0;
+    }
+
+    if(setsockopt(udpOut, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1){
+        perror("Reuse Addr Failed");
+        return 0;
+    }
+
+    if(setsockopt(udpIn, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1){
+        perror("Reuse Addr Failed");
+        return 0;
+    }
+
+    if(bind(udpOut, (struct sockaddr*)&udpClient, sizeof(udpClient)) == -1){
+        perror("UDP bind failed");
+        return 0;
+    }
+
+    if(bind(udpIn, (struct sockaddr*)&udpClient, sizeof(udpClient)) == -1){
+        perror("UDP Second bind failed");
+        return 0;
+    }
+
+    serverAddr->sin_family = AF_INET;
+
+    do{
+        ++tries;
+        sendto(udpOut, &serverCall, sizeof(int), 0, (struct sockaddr*)&broadcast, sizeof(broadcast));
+        // receive own broadcast packet
+        recvfrom(udpOut, &echo, sizeof(echo), 0, (struct sockaddr*)serverAddr, &serverLen);
+        recvfrom(udpIn, &echo, sizeof(echo), 0, (struct sockaddr*)serverAddr, &serverLen);
+
+    } while((received = recvfrom(udpIn, serverName, MAX_NAME, 0, (struct sockaddr*)serverAddr, &serverLen)) == -1 && tries < 10);
+
+
+    if(tries == 10){
+        ret = 0;
+    }
+    else{
+        ret = 1;
+
+    }
+
+    serverAddr.sin_port = htons(TCP_PORT);
+
+    close(udpIn);
+    close(udpOut);
+
+    return ret;
+}
+
 int readSock(SOCKET socket, void* buffer, int size){
     int toRead = size;
 	int thisRead;
