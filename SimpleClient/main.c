@@ -5,6 +5,7 @@
 #define BUFFSIZE 2048
 
 int readSock(SOCKET socket, void* buffer, int size);
+int serverDiscover(struct sockaddr_in* serverAddr);
 
 int main(int argc, char* argv[])
 {
@@ -28,16 +29,19 @@ int main(int argc, char* argv[])
     uint32_t outLen = 0;
 
 
-    if(argc < 4){
-        printf("Usage: %s <name> <address> <port>", argv[0]);
-        exit(1);
+    if(argc < 2){
+        printf("Usage: %s <name>\n", argv[0]);
+        exit(0);
     }
 
     myNameLen = strlen(argv[1]) + 1;
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(atoi(argv[3]));
-    serverAddr.sin_addr.s_addr = inet_addr(argv[2]);
+    printf("Searching for server...\n");
+    if(!serverDiscover(&serverAddr)){
+        printf("Failed to find server\n");
+        exit(0);
+    }
+    printf("Server found\n");
 
     clientAddr.sin_family = AF_INET;
     clientAddr.sin_port = 0;
